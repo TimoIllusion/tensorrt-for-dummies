@@ -4,6 +4,8 @@ Easy examples to get started with TensorRT.
 
 ## Install TensorRT
 
+>Note: Change versions according to your versions.
+
 **Windows**:
 
 1. Download and install CUDA (tested with CUDA 12.6)
