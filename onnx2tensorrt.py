@@ -1,29 +1,38 @@
 import tensorrt as trt
 
+onnx_file_path = "efficientnet.onnx"
 
-def build_engine():
-    logger = trt.Logger(trt.Logger.WARNING)
-    builder = trt.Builder(logger)
-    network = builder.create_network(
-        1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
-    )
-    parser = trt.OnnxParser(network, logger)
+TRT_LOGGER = trt.Logger(trt.Logger.INFO)
+builder = trt.Builder(TRT_LOGGER)
+network = builder.create_network(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
+config = builder.create_builder_config()
+config.set_flag(trt.BuilderFlag.FP16)  # Enable FP16 if supported
 
-    # Parse ONNX
-    with open("efficientnet.onnx", "rb") as model:
-        parser.parse(model.read())
+with open(onnx_file_path, "rb") as model_file:
+    parser = trt.OnnxParser(network, TRT_LOGGER)
+    if not parser.parse(model_file.read()):
+        print("Failed to parse the ONNX file.")
+        for error in range(parser.num_errors):
+            print(parser.get_error(error))
+        exit()
 
-    config = builder.create_builder_config()
-    config.max_workspace_size = 1 << 30  # 1GB
-    config.set_flag(trt.BuilderFlag.FP16)
+input_tensor = network.get_input(0)  # Assuming the input tensor is at index 0
+input_shape = input_tensor.shape
+print("Model input shape:", input_shape)
 
-    # Build engine
-    engine = builder.build_engine(network, config)
+# Create optimization profile for dynamic input shape
+profile = builder.create_optimization_profile()
+min_shape = (1, 3, 224, 224)  # Minimum shape (batch=1)
+opt_shape = (1, 3, 224, 224)  # Optimal shape (batch=4)
+max_shape = (4, 3, 224, 224)  # Maximum shape (batch=16)
 
-    # Save engine
-    with open("efficientnet.engine", "wb") as f:
-        f.write(engine.serialize())
+profile.set_shape(input_tensor.name, min_shape, opt_shape, max_shape)
+config.add_optimization_profile(profile)
 
+engine = builder.build_engine_with_config(network, config)
+if engine is None:
+    print("Failed to build the engine.")
+    exit()
 
-if __name__ == "__main__":
-    build_engine()
+with open("model.trt", "wb") as f:
+    f.write(engine.serialize())
