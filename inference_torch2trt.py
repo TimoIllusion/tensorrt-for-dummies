@@ -25,7 +25,7 @@ def main():
         model = create_model().cuda()
         # Convert the PyTorch model to TensorRT
         x = torch.ones((1, 3, 224, 224)).cuda()
-        model_trt = torch2trt(model, [x], fp16_mode=True, max_workspace_size=1 << 25)
+        model_trt = torch2trt(model, [x], fp16_mode=True, max_workspace_size=1 << 32)
         # Save the TensorRT model for future use
         torch.save(model_trt.state_dict(), trt_model_path)
         print(f"Saved TensorRT model to {trt_model_path}")
