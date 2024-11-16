@@ -19,7 +19,7 @@
 #include "prepostprocessing.h" // Header file for preprocessing and postprocessing functions
 
 // Simple TensorRT Logger Class
-class SimpleLogger : public nvinfer1::ILogger {
+class SimpleTRTLogger : public nvinfer1::ILogger {
 public:
     void log(nvinfer1::ILogger::Severity severity, const char* msg) noexcept override {
         std::cerr << "[TensorRT] " << msg << std::endl;
@@ -29,7 +29,7 @@ public:
 class TRTInference
 {
 public:
-    TRTInference(const std::string& engineFilename, nvinfer1::ILogger& logger);
+    TRTInference(const std::string& engineFilename, nvinfer1::ILogger& logger, int32_t batchSize, int32_t channels, int32_t width, int32_t height);
     bool infer(const std::vector<float>& input_buffer, std::vector<float>& output_buffer);
 
 private:
@@ -46,11 +46,11 @@ private:
     size_t mOutputSize; // Size of output memory
     cudaStream_t mStream; // CUDA stream
 
-    void allocateResources(int32_t width, int32_t height);
+    void allocateResources(int32_t batchSize, int32_t channels, int32_t width, int32_t height);
     static size_t getMemorySize(const nvinfer1::Dims& dims, const int32_t elem_size);
 };
 
-TRTInference::TRTInference(const std::string& engineFilename, nvinfer1::ILogger& logger)
+TRTInference::TRTInference(const std::string& engineFilename, nvinfer1::ILogger& logger, int32_t batchSize, int32_t channels, int32_t width, int32_t height)
     : mEngineFilename(engineFilename)
     , mEngine(nullptr), mLogger(logger)
 {
@@ -75,15 +75,15 @@ TRTInference::TRTInference(const std::string& engineFilename, nvinfer1::ILogger&
     assert(mContext.get() != nullptr);
 
     // Allocate resources once during initialization
-    allocateResources(224, 224); // Assuming default width and height, can be adjusted as needed
+    allocateResources(batchSize, channels, width, height);
     cudaStreamCreateWithPriority(&mStream, cudaStreamNonBlocking, 1); // Use high-priority non-blocking stream
 }
 
-void TRTInference::allocateResources(int32_t width, int32_t height)
+void TRTInference::allocateResources(int32_t batchSize, int32_t channels, int32_t width, int32_t height)
 {
     char const* input_name = "input";
     assert(mEngine->getTensorDataType(input_name) == nvinfer1::DataType::kFLOAT);
-    auto input_dims = nvinfer1::Dims4{1, 3, height, width};
+    auto input_dims = nvinfer1::Dims4{batchSize, channels, height, width};
     mContext->setInputShape(input_name, input_dims);
     mInputSize = getMemorySize(input_dims, sizeof(float));
 
@@ -130,11 +130,13 @@ size_t TRTInference::getMemorySize(const nvinfer1::Dims& dims, const int32_t ele
 
 int main(int argc, char** argv)
 {
+    int32_t batchSize{1};
+    int32_t channels{3};
     int32_t width{224};
     int32_t height{224};
 
-    SimpleLogger logger;
-    TRTInference sample("efficientnet.engine", logger);
+    SimpleTRTLogger logger;
+    TRTInference engine("efficientnet.engine", logger, batchSize, channels, width, height);
 
     std::cout << "Running TensorRT inference" << std::endl;
 
@@ -156,7 +158,7 @@ int main(int argc, char** argv)
     for (int i = 0; i < iterations; ++i)
     {
         auto start_time = std::chrono::high_resolution_clock::now();
-        if (!sample.infer(input_buffer, output_buffer))
+        if (!engine.infer(input_buffer, output_buffer))
         {
             return -1;
         }
