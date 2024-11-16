@@ -63,7 +63,8 @@
         "functional": "cpp",
         "list": "cpp",
         "unordered_map": "cpp",
-        "xhash": "cpp"
+        "xhash": "cpp",
+        "cassert": "cpp"
     },
     "cmake.sourceDirectory": "C:/Users/LocalAdmin/workspace/tensorrt-for-dummies/inference_tensorrt10_cpp"
 }
