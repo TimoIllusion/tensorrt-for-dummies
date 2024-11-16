@@ -1,21 +1,4 @@
- // derived from https://github.com/NVIDIA/TensorRT/tree/release/10.6/quickstart/SemanticSegmentation
-
-/*
- * SPDX-FileCopyrightText: Copyright (c) 1993-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
- * SPDX-License-Identifier: Apache-2.0
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+ // derived from https://github.com/NVIDIA/TensorRT/tree/release/10.6/quickstart/SemanticSegmentation (Apache-2.0)
 
 #include <cassert>
 #include <cfloat>
@@ -23,6 +6,8 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <vector>
+#include <algorithm>
 
 #include <cuda_runtime_api.h>
 #include "NvInfer.h"
@@ -30,6 +15,7 @@
 
 #include "util.h"
 #include "logger.h"
+#include <opencv2/opencv.hpp>
 
 constexpr long long operator"" _MiB(long long unsigned val)
 {
@@ -39,14 +25,13 @@ constexpr long long operator"" _MiB(long long unsigned val)
 //!
 //! \class TRTClassification
 //!
-//! \brief Implements semantic segmentation using FCN-ResNet101 ONNX model.
+//! \brief Implements classification using TensorRT.
 //!
 class TRTClassification
 {
-
 public:
     TRTClassification(const std::string& engineFilename);
-    bool infer(const std::string& input_filename, int32_t width, int32_t height, const std::string& output_filename);
+    bool infer(const std::string& input_filename, int32_t width, int32_t height);
 
 private:
     std::string mEngineFilename;                    //!< Filename of the serialized engine.
@@ -63,8 +48,7 @@ TRTClassification::TRTClassification(const std::string& engineFilename)
     : mEngineFilename(engineFilename)
     , mEngine(nullptr), mLogger(new TRTLogger(nvinfer1::ILogger::Severity::kINFO))
 {
-
-    // De-serialize engine from file
+    // Deserialize engine from file
     std::ifstream engineFile(engineFilename, std::ios::binary);
     if (engineFile.fail())
     {
@@ -83,12 +67,47 @@ TRTClassification::TRTClassification(const std::string& engineFilename)
     assert(mEngine.get() != nullptr);
 }
 
+// Function to preprocess the input image
+std::vector<float> preprocessImage(const std::string& imagePath, int32_t width, int32_t height)
+{
+    cv::Mat image = cv::imread(imagePath);
+    if (image.empty())
+    {
+        throw std::runtime_error("Failed to load image at " + imagePath);
+    }
+
+    // Convert BGR to RGB
+    cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+    // Resize image
+    cv::resize(image, image, cv::Size(width, height));
+    // Normalize image
+    image.convertTo(image, CV_32F, 1.0 / 255);
+    cv::Scalar mean(0.485, 0.456, 0.406);
+    cv::Scalar stddev(0.229, 0.224, 0.225);
+    cv::Mat channels[3];
+    cv::split(image, channels);
+    for (int i = 0; i < 3; ++i)
+    {
+        channels[i] = (channels[i] - mean[i]) / stddev[i];
+    }
+    cv::merge(channels, 3, image);
+
+    // Convert HWC to CHW format
+    std::vector<cv::Mat> chw(3);
+    cv::split(image, chw);
+    std::vector<float> data(3 * width * height);
+    for (int i = 0; i < 3; ++i)
+    {
+        std::memcpy(&data[i * width * height], chw[i].data, width * height * sizeof(float));
+    }
+
+    return data;
+}
+
 //!
 //! \brief Runs the TensorRT inference.
 //!
-//! \details Allocate input and output memory, and executes the engine.
-//!
-bool TRTClassification::infer(const std::string& input_filename, int32_t width, int32_t height, const std::string& output_filename)
+bool TRTClassification::infer(const std::string& input_filename, int32_t width, int32_t height)
 {
     auto context = std::unique_ptr<nvinfer1::IExecutionContext>(mEngine->createExecutionContext());
     if (!context)
@@ -97,89 +116,62 @@ bool TRTClassification::infer(const std::string& input_filename, int32_t width, 
     }
 
     char const* input_name = "input";
-    
     assert(mEngine->getTensorDataType(input_name) == nvinfer1::DataType::kFLOAT);
-    auto input_dims = nvinfer1::Dims4{1, /* channels */ 3, height, width};
+    auto input_dims = nvinfer1::Dims4{1, 3, height, width};
     context->setInputShape(input_name, input_dims);
     auto input_size = util::getMemorySize(input_dims, sizeof(float));
 
     char const* output_name = "output";
     assert(mEngine->getTensorDataType(output_name) == nvinfer1::DataType::kFLOAT);
     auto output_dims = context->getTensorShape(output_name);
-    auto output_size = util::getMemorySize(output_dims, sizeof(int64_t));
+    auto output_size = util::getMemorySize(output_dims, sizeof(float));
 
     // Allocate CUDA memory for input and output bindings
     void* input_mem{nullptr};
-    if (cudaMalloc(&input_mem, input_size) != cudaSuccess)
-    {
-        std::cout << "ERROR: input cuda memory allocation failed, size = " << input_size << " bytes" << std::endl;
-        return false;
-    }
+    cudaMalloc(&input_mem, input_size);
     void* output_mem{nullptr};
-    if (cudaMalloc(&output_mem, output_size) != cudaSuccess)
+    cudaMalloc(&output_mem, output_size);
+
+    // Preprocess image
+    std::vector<float> input_buffer;
+    try
     {
-        std::cout << "ERROR: output cuda memory allocation failed, size = " << output_size << " bytes" << std::endl;
-        return false;
+        input_buffer = preprocessImage(input_filename, width, height);
     }
-
-    // Read image data from file and mean-normalize it
-    // const std::vector<float> mean{0.485f, 0.456f, 0.406f};
-    // const std::vector<float> stddev{0.229f, 0.224f, 0.225f};
-    // auto input_image{util::RGBImageReader(input_filename, input_dims, mean, stddev)};
-    // input_image.read();
-    // auto input_buffer = input_image.process();
-
-    // create a dummy buffer with dummy image data
-    auto input_buffer = std::unique_ptr<float>{new float[input_size / sizeof(float)]};
-    for (size_t i = 0; i < input_size / sizeof(float); ++i)
+    catch (const std::exception& e)
     {
-        input_buffer.get()[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        std::cerr << e.what() << std::endl;
+        return false;
     }
 
     cudaStream_t stream;
-    if (cudaStreamCreate(&stream) != cudaSuccess)
-    {
-        std::cout << "ERROR: cuda stream creation failed." << std::endl;
-        return false;
-    }
+    cudaStreamCreate(&stream);
 
     // Copy image data to input binding memory
-    if (cudaMemcpyAsync(input_mem, input_buffer.get(), input_size, cudaMemcpyHostToDevice, stream) != cudaSuccess)
-    {
-        std::cout << "ERROR: CUDA memory copy of input failed, size = " << input_size << " bytes" << std::endl;
-        return false;
-    }
+    cudaMemcpyAsync(input_mem, input_buffer.data(), input_size, cudaMemcpyHostToDevice, stream);
+
     context->setTensorAddress(input_name, input_mem);
     context->setTensorAddress(output_name, output_mem);
 
     // Run TensorRT inference
-    bool status = context->enqueueV3(stream);
-    if (!status)
+    std::cout << "Enqueueing job" << std::endl;
+    if (!context->enqueueV3(stream))
     {
         std::cout << "ERROR: TensorRT inference failed" << std::endl;
         return false;
     }
 
     // Copy predictions from output binding memory
-    auto output_buffer = std::unique_ptr<int64_t>{new int64_t[output_size]};
-    if (cudaMemcpyAsync(output_buffer.get(), output_mem, output_size, cudaMemcpyDeviceToHost, stream) != cudaSuccess)
-    {
-        std::cout << "ERROR: CUDA memory copy of output failed, size = " << output_size << " bytes" << std::endl;
-        return false;
-    }
+    std::vector<float> output_buffer(output_size / sizeof(float));
+    cudaMemcpyAsync(output_buffer.data(), output_mem, output_size, cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
-    // // Plot the semantic segmentation predictions of 21 classes in a colormap image and write to file
-    // const int num_classes{21};
-    // const std::vector<int> palette{(0x1 << 25) - 1, (0x1 << 15) - 1, (0x1 << 21) - 1};
-    // auto output_image{util::ArgmaxImageWriter(output_filename, output_dims, palette, num_classes)};
-    // int64_t* output_ptr = output_buffer.get();
-    // std::vector<int32_t> output_buffer_casted(output_size);
-    // for (size_t i = 0; i < output_size; ++i) {
-    //     output_buffer_casted[i] = static_cast<int32_t>(output_ptr[i]);
-    // }
-    // output_image.process(output_buffer_casted.data());
-    // output_image.write();
+    // Postprocess output: Find the top-1 class
+    auto max_iter = std::max_element(output_buffer.begin(), output_buffer.end());
+    int top1_class = std::distance(output_buffer.begin(), max_iter);
+    float confidence = *max_iter;
+
+    std::cout << "Predicted class: " << top1_class << " with confidence: " << confidence << std::endl;
 
     // Free CUDA resources
     cudaFree(input_mem);
@@ -195,7 +187,7 @@ int main(int argc, char** argv)
     TRTClassification sample("efficientnet.engine");
 
     std::cout << "Running TensorRT inference" << std::endl;
-    if (!sample.infer("cat.jpg", width, height, "output.ppm"))
+    if (!sample.infer("cat.jpg", width, height))
     {
         return -1;
     }
