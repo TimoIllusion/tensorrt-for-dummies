@@ -2,3 +2,4 @@ efficientnet.onnx
 *.pyc
 efficientnet.engine
 efficientnet_trt.pth
+build
