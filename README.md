@@ -17,7 +17,7 @@ Easy examples to get started with TensorRT.
 4. Add TensorRT lib dir `C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26\lib` to PATH environment variable (e.g. via GUI)
 5. Install TensorRT wheels from TensorRT python dir, e.g. `C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26\python` for corresponding python version:
 
-    ```bash
+    ```console
     cd C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26\python
     pip install tensorrt_dispatch-10.6.0-cp310-none-win_amd64.whl tensorrt_lean-10.6.0-cp310-none-win_amd64.whl tensorrt-10.6.0-cp310-none-win_amd64.whl
     ```	
@@ -26,6 +26,29 @@ Easy examples to get started with TensorRT.
     ```bash
     python -c "import tensorrt as trt; print(trt.__version__)"
     ```
+
+For C++ part `inference_tensorrt10_cpp`:
+
+1. Install vcpkg (https://github.com/microsoft/vcpkg). 
+
+```bash
+
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+```
+
+``VCPKG_ROOT`` environment variable should be set to the vcpkg directory, e.g. `C:\vcpkg`.
+Add VCPKG_ROOT to PATH environment variable (e.g. via GUI).
+
+2. Install required vcpkg packages:
+
+```bash
+vcpkg install opencv:x64-windows
+vcpkg integrate install
+```
+
+3. Install CMake exten
 
 **Linux**:
 

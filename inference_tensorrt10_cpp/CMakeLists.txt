@@ -4,41 +4,33 @@ project(EfficientNetTensorRT)
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 
-# Define vcpkg path
+# # Use vcpkg toolchain
 set(CMAKE_TOOLCHAIN_FILE "C:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake")
+set(CMAKE_PREFIX_PATH "C:/tools/vcpkg/installed/x64-windows")
 
-# Include directories
+# Include TensorRT and CUDA directories
 include_directories(
     "C:/Program Files/NVIDIA GPU Computing Toolkit/TensorRT-10.6.0.26/include"
-    "C:/tools/vcpkg/packages/opencv4_x64-windows/include"
     "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/include"
 )
 
-# Link directories
+# Link TensorRT and CUDA directories
 link_directories(
     "C:/Program Files/NVIDIA GPU Computing Toolkit/TensorRT-10.6.0.26/lib"
-    "C:/tools/vcpkg/packages/opencv4_x64-windows/lib"
     "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/lib/x64"
 )
+
+# Find OpenCV
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 # Add the executable
 add_executable(main main.cpp util.cpp)
 
-# link toother soruce code
-
-
-# Link TensorRT libraries
+# Link TensorRT, CUDA, OpenCV, and Protobuf libraries
 target_link_libraries(main
     nvinfer_10.lib
     nvinfer_plugin_10.lib
     cudart.lib
-    opencv_core4.lib
-    opencv_imgproc4.lib
-    opencv_imgcodecs4.lib
-    opencv_highgui4.lib
+    ${OpenCV_LIBS}
 )
-
-# Find CUDA (adjust CUDA path if necessary)
-find_package(CUDA REQUIRED)
-include_directories(${CUDA_INCLUDE_DIRS})
-target_link_libraries(main ${CUDA_LIBRARIES})

@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+      "ms-vscode.cmake-tools",        // CMake Tools
+      "ms-vscode.cpptools",          // C/C++ IntelliSense and debugging
+      "twxs.cmake",       // CMake Highlighting
+      "ms-python.python",            // Python
+    ],
+    "unwantedRecommendations": []   // Optional: Extensions you want to discourage
+  }
