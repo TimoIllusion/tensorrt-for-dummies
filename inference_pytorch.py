@@ -12,7 +12,7 @@ def main():
     model = create_model()
 
     # Load and preprocess image
-    image = cv2.imread("goldfish.jpg")
+    image = cv2.imread("cat.jpg")
     image = preprocess_numpy_bgr_image(image)
 
     # Move to gpu
@@ -22,8 +22,8 @@ def main():
     times = []
     print("Running PyTorch inference...")
 
-    # Run inference 10 times
-    for i in range(10):
+    # Run inference 100 times
+    for i in range(100):
         start_time = time.perf_counter()
 
         with torch.no_grad():
@@ -35,7 +35,7 @@ def main():
         print(f"Iteration {i+1}: {inference_time:.2f}ms")
 
     # Calculate average of last 5 runs
-    avg_time = sum(times[-5:]) / 5
+    avg_time = sum(times[-95:]) / 95
     print(f"\nAverage inference time (last 5 runs): {avg_time:.2f}ms")
     print(f"Predicted ImageNet class ID: {class_id}")
 

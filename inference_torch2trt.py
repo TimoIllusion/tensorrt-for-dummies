@@ -31,7 +31,7 @@ def main():
         print(f"Saved TensorRT model to {trt_model_path}")
 
     # Load the input image
-    image = cv2.imread("goldfish.jpg")
+    image = cv2.imread("cat.jpg")
 
     # Preprocess the image
     input_tensor = preprocess_numpy_bgr_image(image).cuda()
@@ -39,9 +39,9 @@ def main():
     times = []
     print("Running torch2trt inference...")
 
-    # Run inference 10 times
+    # Run inference 100 times
     with torch.no_grad():
-        for i in range(10):
+        for i in range(100):
             start_time = time.perf_counter()
             output = model_trt(input_tensor)
             class_id = postprocess_output(output)
@@ -53,7 +53,7 @@ def main():
             print(f"Iteration {i+1}: {inference_time:.2f}ms")
 
     # Calculate the average inference time of the last 5 runs
-    avg_time = sum(times[-5:]) / 5
+    avg_time = sum(times[-95:]) / 95
     print(f"\nAverage inference time (last 5 runs): {avg_time:.2f}ms")
     print(f"Predicted ImageNet class ID: {class_id}")
 

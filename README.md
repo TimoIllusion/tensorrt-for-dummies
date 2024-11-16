@@ -2,26 +2,66 @@
 
 Easy examples to get started with TensorRT.
 
+>TL;DR: Use Torch2TRT for PyTorch for a significant (>2x) speedup with only a few lines of additional code.
+
 ## Install TensorRT
 
 >Note: Change versions according to your versions.
+>Note: Official NVIDIA pytorch docker container already comes with TensorRT installed. This is recommended if possible.
 
 **Windows**:
 
 1. Download and install CUDA (tested with CUDA 12.6)
 2. Download and extract CUDNN to CUDA directory (tested with CUDNN 8.9.7 for CUDA 12.x)
-3. Download and extract TensorRT to any directory, e.g. ``C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT`` (tested with TensorRT 10.6 GA for CUDA 12.0-12.6)
-4. Add TensorRT lib dir `C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT\lib` to PATH environment variable (e.g. via GUI)
+3. Download and extract TensorRT to any directory, e.g. ``C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26`` (tested with TensorRT 10.6 GA for CUDA 12.0-12.6)
+4. Add TensorRT lib dir `C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26\lib` to PATH environment variable (e.g. via GUI)
 5. Install TensorRT wheels from TensorRT python dir, e.g. `C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26\python` for corresponding python version:
 
-```bash
-pip install tensorrt_dispatch-10.6.0-cp310-none-win_amd64.whl tensorrt_lean-10.6.0-cp310-none-win_amd64.whl tensorrt-10.6.0-cp310-none-win_amd64.whl
-```	
+    ```bash
+    cd C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26\python
+    pip install tensorrt_dispatch-10.6.0-cp310-none-win_amd64.whl tensorrt_lean-10.6.0-cp310-none-win_amd64.whl tensorrt-10.6.0-cp310-none-win_amd64.whl
+    ```	
 6. Verify installation:
 
+    ```bash
+    python -c "import tensorrt as trt; print(trt.__version__)"
+    ```
+
+**Linux**:
+
+See official TensorRT installation guide: https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html
+
+## Install Other Requirements
+
 ```bash
-python -c "import tensorrt as trt; print(trt.__version__)"
+pip install -r requirements.txt
 ```
+
+```bash
+pip install git+https://github.com/NVIDIA-AI-IOT/torch2trt
+```
+
+## Getting Started
+
+Run the scripts one by one:
+
+```bash
+python inference_pytorch.py # (~7.14 ms on RTX 4090)
+python inference_torch2trt.py # (~1.37 ms on RTX 4090)
+
+python export2onnx.py
+python onnx2tensorrt10.py
+
+python inference_tensorrt10.py # (~1.39 ms on RTX 4090)
+```
+
+**Torch2TRT is the recommended way to use TensorRT with PyTorch in Python. Using TensoRT directly is more complex and requires more code, but is also more flexible. This process is recommended if C++ TensorRT API is used and not Python or other frameworks like TesnorFlow are used.**
+
+## References
+
+- https://github.com/NVIDIA/TensorRT/tree/main/samples/python/efficientnet
+- https://tengteng.medium.com/example-inference-code-to-run-tensorrt-10-0-32ea93fdcc2e
+- https://images.unsplash.com/photo-1529778873920-4da4926a72c2?ixid=MnwxMjA3fDB8MHxzZWFyY2h8MXx8Y3V0ZSUyMGNhdHxlbnwwfHwwfHw%3D&ixlib=rb-1.2.1&q=80&w=1000
 
 ## License
 

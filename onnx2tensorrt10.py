@@ -28,15 +28,12 @@ print("Model input shape:", input_shape)
 profile = builder.create_optimization_profile()
 min_shape = (1, 3, 224, 224)  # Minimum shape (batch=1)
 opt_shape = (1, 3, 224, 224)  # Optimal shape (batch=4)
-max_shape = (4, 3, 224, 224)  # Maximum shape (batch=16)
+max_shape = (1, 3, 224, 224)  # Maximum shape (batch=16)
 
 profile.set_shape(input_tensor.name, min_shape, opt_shape, max_shape)
 config.add_optimization_profile(profile)
 
-engine = builder.build_engine_with_config(network, config)
-if engine is None:
-    print("Failed to build the engine.")
-    exit()
+engine_bytes = builder.build_serialized_network(network, config)
 
 with open("efficientnet.engine", "wb") as f:
-    f.write(engine.serialize())
+    f.write(engine_bytes)
