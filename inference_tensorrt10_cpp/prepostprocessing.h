@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <opencv2/opencv.hpp>
+#include <algorithm>
+#include <iostream>
 
 // Preprocessing function to handle image loading, resizing, and normalization
 std::vector<float> preprocessImage(const std::string& imagePath, int32_t width, int32_t height)
@@ -41,12 +43,11 @@ std::vector<float> preprocessImage(const std::string& imagePath, int32_t width, 
 // Postprocessing function to handle output interpretation
 void postprocessOutput(const std::vector<float>& outputBuffer)
 {
-    std::cout << "Output data: ";
-    for (size_t i = 0; i < outputBuffer.size(); ++i)
-    {
-        std::cout << outputBuffer[i] << " ";
-    }
-    std::cout << std::endl;
+    auto maxIter = std::max_element(outputBuffer.begin(), outputBuffer.end());
+    int topClass = std::distance(outputBuffer.begin(), maxIter);
+    float confidence = *maxIter;
+
+    std::cout << "Predicted class: " << topClass << " with confidence: " << confidence << std::endl;
 }
 
 #endif // PREPOSTPROCESSING_H
