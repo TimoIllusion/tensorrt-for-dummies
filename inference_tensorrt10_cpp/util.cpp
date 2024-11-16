@@ -1,4 +1,4 @@
- // https://github.com/NVIDIA/TensorRT/tree/release/10.6/quickstart/SemanticSegmentation
+ // https://github.com/NVIDIA/TensorRT/tree/release/10.6/quickstart/SemanticSegmentation (Apache-2.0)
 
 /*
  * SPDX-FileCopyrightText: Copyright (c) 1993-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
