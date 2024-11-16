@@ -4,9 +4,13 @@ onnx_file_path = "efficientnet.onnx"
 
 TRT_LOGGER = trt.Logger(trt.Logger.INFO)
 builder = trt.Builder(TRT_LOGGER)
+
 network = builder.create_network(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
 config = builder.create_builder_config()
 config.set_flag(trt.BuilderFlag.FP16)  # Enable FP16 if supported
+config.set_memory_pool_limit(
+    trt.MemoryPoolType.WORKSPACE, 1 << 32
+)  # 4 GB (add if multiple engines are running)
 
 with open(onnx_file_path, "rb") as model_file:
     parser = trt.OnnxParser(network, TRT_LOGGER)
@@ -34,5 +38,5 @@ if engine is None:
     print("Failed to build the engine.")
     exit()
 
-with open("model.trt", "wb") as f:
+with open("efficientnet.engine", "wb") as f:
     f.write(engine.serialize())

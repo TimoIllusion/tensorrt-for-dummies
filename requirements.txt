@@ -1,4 +1,5 @@
-# for model creation and export
 torch
-onnx==1.12.0
-protobuf==3.20.0
+opencv-python
+numpy
+onnx==1.12.0 # needed for model export to onnx
+protobuf==3.20.0 # needed for model export to onnx, fixes the default protobuf version

@@ -1,33 +1,48 @@
 import torch
-import torchvision.models as models
+from torchvision import transforms, models
+import cv2
+import numpy as np
+from PIL import Image
 
 
 def create_model():
     # Load pretrained EfficientNet-B0
-    model = models.efficientnet_b0(pretrained=True)
+
+    model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)
     model.eval()
     return model
 
 
-def preprocess_image(image):
-    # Resize to 224x224 (EfficientNet-B0 default size)
-    size = (224, 224)
-    if image.shape[1:] != size:
-        image = torch.nn.functional.interpolate(image.unsqueeze(0), size=size).squeeze(
-            0
-        )
+def preprocess_numpy_bgr_image(image: np.ndarray) -> torch.Tensor:
+    # Convert BGR image to RGB
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    # Normalize with ImageNet stats
-    normalize = torch.nn.functional.normalize
-    mean = torch.tensor([0.485, 0.456, 0.406]).view(-1, 1, 1)
-    std = torch.tensor([0.229, 0.224, 0.225]).view(-1, 1, 1)
-    image = (image - mean) / std
+    # Convert numpy array to PIL Image for proper handling by torchvision transforms
+    image = Image.fromarray(image)
+
+    preprocess = transforms.Compose(
+        [
+            transforms.Resize(
+                (224, 224)
+            ),  # Resize to 224x224 (EfficientNet-B0 default size)
+            transforms.ToTensor(),  # Convert to Tensor
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+            ),  # Normalize with ImageNet stats
+        ]
+    )
+
+    # Apply transformations
+    image = preprocess(image)
+
+    # Add batch dimension (1, C, H, W)
+    image = image.unsqueeze(0)
 
     return image
 
 
 def postprocess_output(output):
-    # Get top-1 prediction
+    # Apply softmax and get top-1 prediction
     probabilities = torch.nn.functional.softmax(output, dim=1)
     _, predicted = torch.max(probabilities, 1)
     return predicted.item()

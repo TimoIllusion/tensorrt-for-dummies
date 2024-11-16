@@ -22,3 +22,15 @@ pip install tensorrt_dispatch-10.6.0-cp310-none-win_amd64.whl tensorrt_lean-10.6
 ```bash
 python -c "import tensorrt as trt; print(trt.__version__)"
 ```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Author
+
+- **Timo Leitritz**, 2024
+
+## AI Assistance
+
+Development of this project was supported by OpenAI's ChatGPT models (o1-preview, 4o, Claude 3.5 Sonnet, November 2024), which provided code suggestions and troubleshooting help.

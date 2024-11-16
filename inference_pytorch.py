@@ -3,7 +3,7 @@ import time
 import torch
 import cv2
 
-from model import create_model, preprocess_image, postprocess_output
+from model import create_model, preprocess_numpy_bgr_image, postprocess_output
 
 
 def main():
@@ -13,15 +13,11 @@ def main():
 
     # Load and preprocess image
     image = cv2.imread("goldfish.jpg")
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image = torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
-    image = preprocess_image(image)
-    image = image.unsqueeze(0)
+    image = preprocess_numpy_bgr_image(image)
 
-    # Move to gpu if available
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    image = image.to(device)
-    model = model.to(device)
+    # Move to gpu
+    image = image.cuda()
+    model = model.cuda()
 
     times = []
     print("Running PyTorch inference...")
