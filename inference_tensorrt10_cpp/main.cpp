@@ -27,8 +27,8 @@
 #include <cuda_runtime_api.h>
 #include "NvInfer.h"
 #include "NvOnnxParser.h"
-#include "util.h"
 
+#include "util.h"
 #include "logger.h"
 
 constexpr long long operator"" _MiB(long long unsigned val)
@@ -37,15 +37,15 @@ constexpr long long operator"" _MiB(long long unsigned val)
 }
 
 //!
-//! \class SampleSegmentation
+//! \class TRTClassification
 //!
 //! \brief Implements semantic segmentation using FCN-ResNet101 ONNX model.
 //!
-class SampleSegmentation
+class TRTClassification
 {
 
 public:
-    SampleSegmentation(const std::string& engineFilename);
+    TRTClassification(const std::string& engineFilename);
     bool infer(const std::string& input_filename, int32_t width, int32_t height, const std::string& output_filename);
 
 private:
@@ -59,7 +59,7 @@ private:
     std::unique_ptr<nvinfer1::ICudaEngine> mEngine; //!< The TensorRT engine used to run the network
 };
 
-SampleSegmentation::SampleSegmentation(const std::string& engineFilename)
+TRTClassification::TRTClassification(const std::string& engineFilename)
     : mEngineFilename(engineFilename)
     , mEngine(nullptr), mLogger(new TRTLogger(nvinfer1::ILogger::Severity::kINFO))
 {
@@ -88,7 +88,7 @@ SampleSegmentation::SampleSegmentation(const std::string& engineFilename)
 //!
 //! \details Allocate input and output memory, and executes the engine.
 //!
-bool SampleSegmentation::infer(const std::string& input_filename, int32_t width, int32_t height, const std::string& output_filename)
+bool TRTClassification::infer(const std::string& input_filename, int32_t width, int32_t height, const std::string& output_filename)
 {
     auto context = std::unique_ptr<nvinfer1::IExecutionContext>(mEngine->createExecutionContext());
     if (!context)
@@ -192,7 +192,7 @@ int main(int argc, char** argv)
     int32_t width{224};
     int32_t height{224};
 
-    SampleSegmentation sample("efficientnet.engine");
+    TRTClassification sample("efficientnet.engine");
 
     std::cout << "Running TensorRT inference" << std::endl;
     if (!sample.infer("cat.jpg", width, height, "output.ppm"))
