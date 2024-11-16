@@ -48,7 +48,9 @@ vcpkg install opencv:x64-windows
 vcpkg integrate install
 ```
 
-3. Install CMake exten
+3. Install CMake extensions if not already installed via recommended extensions on vscode startup.
+
+4. Select compiler, configure and build the project in vscode (release mode).
 
 **Linux**:
 
@@ -76,6 +78,8 @@ python export2onnx.py
 python onnx2tensorrt10.py
 
 python inference_tensorrt10.py # (~1.39 ms on RTX 4090)
+
+.\build\Release\main.exe
 ```
 
 **Torch2TRT is the recommended way to use TensorRT with PyTorch in Python. Using TensoRT directly is more complex and requires more code, but is also more flexible. This process is recommended if C++ TensorRT API is used and not Python or other frameworks like TesnorFlow are used.**
