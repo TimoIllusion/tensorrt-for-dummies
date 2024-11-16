@@ -11,7 +11,6 @@
 #include <chrono>
 #include <numeric>
 
-
 #include <cuda_runtime_api.h>
 #include "NvInfer.h"
 #include "NvOnnxParser.h"
@@ -20,49 +19,7 @@
 #include "util.h"
 #include "logger.h"
 
-
-constexpr long long operator"" _MiB(long long unsigned val)
-{
-    return val * (1 << 20);
-}
-
-class TRTClassification
-{
-public:
-    TRTClassification(const std::string& engineFilename);
-    bool infer(const std::string& input_filename, int32_t width, int32_t height, int iterations = 100);
-
-private:
-    std::string mEngineFilename;                    
-    nvinfer1::Dims mInputDims;                      
-    nvinfer1::Dims mOutputDims;                     
-    std::unique_ptr<TRTLogger> mLogger;             
-    std::unique_ptr<nvinfer1::IRuntime> mRuntime;   
-    std::unique_ptr<nvinfer1::ICudaEngine> mEngine; 
-};
-
-TRTClassification::TRTClassification(const std::string& engineFilename)
-    : mEngineFilename(engineFilename)
-    , mEngine(nullptr), mLogger(new TRTLogger(nvinfer1::ILogger::Severity::kINFO))
-{
-    std::ifstream engineFile(engineFilename, std::ios::binary);
-    if (engineFile.fail())
-    {
-        return;
-    }
-
-    engineFile.seekg(0, std::ifstream::end);
-    auto fsize = engineFile.tellg();
-    engineFile.seekg(0, std::ifstream::beg);
-
-    std::vector<char> engineData(fsize);
-    engineFile.read(engineData.data(), fsize);
-
-    mRuntime.reset(nvinfer1::createInferRuntime(*mLogger));
-    mEngine.reset(mRuntime->deserializeCudaEngine(engineData.data(), fsize));
-    assert(mEngine.get() != nullptr);
-}
-
+// Preprocessing function to handle image loading, resizing, and normalization
 std::vector<float> preprocessImage(const std::string& imagePath, int32_t width, int32_t height)
 {
     cv::Mat image = cv::imread(imagePath);
@@ -95,7 +52,55 @@ std::vector<float> preprocessImage(const std::string& imagePath, int32_t width, 
     return data;
 }
 
-bool TRTClassification::infer(const std::string& input_filename, int32_t width, int32_t height, int iterations)
+// Postprocessing function to handle output interpretation
+void postprocessOutput(const std::vector<float>& outputBuffer)
+{
+    std::cout << "Output data: ";
+    for (size_t i = 0; i < outputBuffer.size(); ++i)
+    {
+        std::cout << outputBuffer[i] << " ";
+    }
+    std::cout << std::endl;
+}
+
+class TRTInference
+{
+public:
+    TRTInference(const std::string& engineFilename);
+    bool infer(const std::string& input_filename, int32_t width, int32_t height, int iterations = 100);
+
+private:
+    std::string mEngineFilename;                    
+    nvinfer1::Dims mInputDims;                      
+    nvinfer1::Dims mOutputDims;                     
+    std::unique_ptr<TRTLogger> mLogger;             
+    std::unique_ptr<nvinfer1::IRuntime> mRuntime;  
+    std::unique_ptr<nvinfer1::ICudaEngine> mEngine;
+};
+
+TRTInference::TRTInference(const std::string& engineFilename)
+    : mEngineFilename(engineFilename)
+    , mEngine(nullptr), mLogger(new TRTLogger(nvinfer1::ILogger::Severity::kINFO))
+{
+    std::ifstream engineFile(engineFilename, std::ios::binary);
+    if (engineFile.fail())
+    {
+        return;
+    }
+
+    engineFile.seekg(0, std::ifstream::end);
+    auto fsize = engineFile.tellg();
+    engineFile.seekg(0, std::ifstream::beg);
+
+    std::vector<char> engineData(fsize);
+    engineFile.read(engineData.data(), fsize);
+
+    mRuntime.reset(nvinfer1::createInferRuntime(*mLogger));
+    mEngine.reset(mRuntime->deserializeCudaEngine(engineData.data(), fsize));
+    assert(mEngine.get() != nullptr);
+}
+
+bool TRTInference::infer(const std::string& input_filename, int32_t width, int32_t height, int iterations)
 {
     auto context = std::unique_ptr<nvinfer1::IExecutionContext>(mEngine->createExecutionContext());
     if (!context)
@@ -162,11 +167,7 @@ bool TRTClassification::infer(const std::string& input_filename, int32_t width, 
     cudaMemcpyAsync(output_buffer.data(), output_mem, output_size, cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
-    auto max_iter = std::max_element(output_buffer.begin(), output_buffer.end());
-    int top1_class = std::distance(output_buffer.begin(), max_iter);
-    float confidence = *max_iter;
-
-    std::cout << "Predicted class: " << top1_class << " with confidence: " << confidence << std::endl;
+    postprocessOutput(output_buffer);
 
     cudaFree(input_mem);
     cudaFree(output_mem);
@@ -178,7 +179,7 @@ int main(int argc, char** argv)
     int32_t width{224};
     int32_t height{224};
 
-    TRTClassification sample("efficientnet.engine");
+    TRTInference sample("efficientnet.engine");
 
     std::cout << "Running TensorRT inference" << std::endl;
     if (!sample.infer("cat.jpg", width, height, 100))
