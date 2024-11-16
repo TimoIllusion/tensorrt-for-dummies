@@ -25,7 +25,7 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 # Add the executable
-add_executable(main main.cpp util.cpp)
+add_executable(main main.cpp)
 
 # Link TensorRT, CUDA, OpenCV, and Protobuf libraries
 target_link_libraries(main
