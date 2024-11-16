@@ -58,7 +58,12 @@
         "xmemory": "cpp",
         "xstring": "cpp",
         "xtr1common": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "list": "cpp",
+        "unordered_map": "cpp",
+        "xhash": "cpp"
     },
     "cmake.sourceDirectory": "C:/Users/LocalAdmin/workspace/tensorrt-for-dummies/inference_tensorrt10_cpp"
 }

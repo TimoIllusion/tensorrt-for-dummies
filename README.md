@@ -62,6 +62,7 @@ python inference_tensorrt10.py # (~1.39 ms on RTX 4090)
 - https://github.com/NVIDIA/TensorRT/tree/main/samples/python/efficientnet
 - https://tengteng.medium.com/example-inference-code-to-run-tensorrt-10-0-32ea93fdcc2e
 - https://images.unsplash.com/photo-1529778873920-4da4926a72c2?ixid=MnwxMjA3fDB8MHxzZWFyY2h8MXx8Y3V0ZSUyMGNhdHxlbnwwfHwwfHw%3D&ixlib=rb-1.2.1&q=80&w=1000
+- https://github.com/NVIDIA/TensorRT/tree/release/10.6/quickstart/SemanticSegmentation (Apache-2.0)
 
 ## License
 

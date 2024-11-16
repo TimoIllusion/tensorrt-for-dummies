@@ -11,26 +11,27 @@ set(CMAKE_TOOLCHAIN_FILE "C:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake")
 include_directories(
     "C:/Program Files/NVIDIA GPU Computing Toolkit/TensorRT-10.6.0.26/include"
     "C:/tools/vcpkg/packages/opencv4_x64-windows/include"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/include"
 )
 
 # Link directories
 link_directories(
     "C:/Program Files/NVIDIA GPU Computing Toolkit/TensorRT-10.6.0.26/lib"
     "C:/tools/vcpkg/packages/opencv4_x64-windows/lib"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/lib/x64"
 )
 
 # Add the executable
-add_executable(main main.cpp)
+add_executable(main main.cpp util.cpp)
+
+# link toother soruce code
+
 
 # Link TensorRT libraries
 target_link_libraries(main
-    nvinfer.lib
-    nvinfer_plugin.lib
+    nvinfer_10.lib
+    nvinfer_plugin_10.lib
     cudart.lib
-)
-
-# Link OpenCV libraries explicitly
-target_link_libraries(main
     opencv_core4.lib
     opencv_imgproc4.lib
     opencv_imgcodecs4.lib
