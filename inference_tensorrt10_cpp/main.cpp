@@ -24,7 +24,7 @@ class TRTInference
 {
 public:
     TRTInference(const std::string& engineFilename);
-    bool infer(const std::string& input_filename, int32_t width, int32_t height, int iterations = 100);
+    bool infer(const std::string& input_filename, int32_t width, int32_t height);
 
 private:
     std::string mEngineFilename;                    
@@ -33,6 +33,14 @@ private:
     std::unique_ptr<TRTLogger> mLogger;             
     std::unique_ptr<nvinfer1::IRuntime> mRuntime;  
     std::unique_ptr<nvinfer1::ICudaEngine> mEngine;
+    std::unique_ptr<nvinfer1::IExecutionContext> mContext; // Execution context for inference
+    void* mInputMem{nullptr}; // CUDA memory for input
+    void* mOutputMem{nullptr}; // CUDA memory for output
+    size_t mInputSize; // Size of input memory
+    size_t mOutputSize; // Size of output memory
+    cudaStream_t mStream; // CUDA stream
+
+    void allocateResources(int32_t width, int32_t height);
 };
 
 TRTInference::TRTInference(const std::string& engineFilename)
@@ -55,32 +63,34 @@ TRTInference::TRTInference(const std::string& engineFilename)
     mRuntime.reset(nvinfer1::createInferRuntime(*mLogger));
     mEngine.reset(mRuntime->deserializeCudaEngine(engineData.data(), fsize));
     assert(mEngine.get() != nullptr);
+
+    mContext.reset(mEngine->createExecutionContext());
+    assert(mContext.get() != nullptr);
+
+    // Allocate resources once during initialization
+    allocateResources(224, 224); // Assuming default width and height, can be adjusted as needed
+    cudaStreamCreate(&mStream);
 }
 
-bool TRTInference::infer(const std::string& input_filename, int32_t width, int32_t height, int iterations)
+void TRTInference::allocateResources(int32_t width, int32_t height)
 {
-    auto context = std::unique_ptr<nvinfer1::IExecutionContext>(mEngine->createExecutionContext());
-    if (!context)
-    {
-        return false;
-    }
-
     char const* input_name = "input";
     assert(mEngine->getTensorDataType(input_name) == nvinfer1::DataType::kFLOAT);
     auto input_dims = nvinfer1::Dims4{1, 3, height, width};
-    context->setInputShape(input_name, input_dims);
-    auto input_size = util::getMemorySize(input_dims, sizeof(float));
+    mContext->setInputShape(input_name, input_dims);
+    mInputSize = util::getMemorySize(input_dims, sizeof(float));
 
     char const* output_name = "output";
     assert(mEngine->getTensorDataType(output_name) == nvinfer1::DataType::kFLOAT);
-    auto output_dims = context->getTensorShape(output_name);
-    auto output_size = util::getMemorySize(output_dims, sizeof(float));
+    auto output_dims = mContext->getTensorShape(output_name);
+    mOutputSize = util::getMemorySize(output_dims, sizeof(float));
 
-    void* input_mem{nullptr};
-    cudaMalloc(&input_mem, input_size);
-    void* output_mem{nullptr};
-    cudaMalloc(&output_mem, output_size);
+    cudaMalloc(&mInputMem, mInputSize);
+    cudaMalloc(&mOutputMem, mOutputSize);
+}
 
+bool TRTInference::infer(const std::string& input_filename, int32_t width, int32_t height)
+{
     std::vector<float> input_buffer;
     try
     {
@@ -92,42 +102,30 @@ bool TRTInference::infer(const std::string& input_filename, int32_t width, int32
         return false;
     }
 
-    cudaStream_t stream;
-    cudaStreamCreate(&stream);
-    cudaMemcpyAsync(input_mem, input_buffer.data(), input_size, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(mInputMem, input_buffer.data(), mInputSize, cudaMemcpyHostToDevice, mStream);
 
-    context->setTensorAddress(input_name, input_mem);
-    context->setTensorAddress(output_name, output_mem);
+    mContext->setTensorAddress("input", mInputMem);
+    mContext->setTensorAddress("output", mOutputMem);
 
-    std::vector<double> times;
     std::cout << "Running TensorRT inference..." << std::endl;
 
-    for (int i = 0; i < iterations; ++i)
+    auto start_time = std::chrono::high_resolution_clock::now();
+    if (!mContext->enqueueV3(mStream))
     {
-        auto start_time = std::chrono::high_resolution_clock::now();
-        if (!context->enqueueV3(stream))
-        {
-            std::cout << "ERROR: TensorRT inference failed" << std::endl;
-            return false;
-        }
-        cudaStreamSynchronize(stream);
-        auto end_time = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> inference_time = end_time - start_time;
-        times.push_back(inference_time.count());
-        std::cout << "Iteration " << i + 1 << ": " << inference_time.count() << "ms" << std::endl;
+        std::cout << "ERROR: TensorRT inference failed" << std::endl;
+        return false;
     }
+    cudaStreamSynchronize(mStream);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> inference_time = end_time - start_time;
+    std::cout << "Inference time: " << inference_time.count() << "ms" << std::endl;
 
-    double avg_time = std::accumulate(times.begin() + 5, times.end(), 0.0) / (iterations - 5);
-    std::cout << "\nAverage inference time (last " << iterations - 5 << " runs): " << avg_time << "ms" << std::endl;
-
-    std::vector<float> output_buffer(output_size / sizeof(float));
-    cudaMemcpyAsync(output_buffer.data(), output_mem, output_size, cudaMemcpyDeviceToHost, stream);
-    cudaStreamSynchronize(stream);
+    std::vector<float> output_buffer(mOutputSize / sizeof(float));
+    cudaMemcpyAsync(output_buffer.data(), mOutputMem, mOutputSize, cudaMemcpyDeviceToHost, mStream);
+    cudaStreamSynchronize(mStream);
 
     postprocessOutput(output_buffer);
 
-    cudaFree(input_mem);
-    cudaFree(output_mem);
     return true;
 }
 
@@ -139,10 +137,24 @@ int main(int argc, char** argv)
     TRTInference sample("efficientnet.engine");
 
     std::cout << "Running TensorRT inference" << std::endl;
-    if (!sample.infer("cat.jpg", width, height, 100))
+
+    int iterations = 100;
+    std::vector<double> times;
+    for (int i = 0; i < iterations; ++i)
     {
-        return -1;
+        auto start_time = std::chrono::high_resolution_clock::now();
+        if (!sample.infer("cat.jpg", width, height))
+        {
+            return -1;
+        }
+        auto end_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> inference_time = end_time - start_time;
+        times.push_back(inference_time.count());
+        std::cout << "Iteration " << i + 1 << ": " << inference_time.count() << "ms" << std::endl;
     }
+
+    double avg_time = std::accumulate(times.begin() + 5, times.end(), 0.0) / (iterations - 5);
+    std::cout << "\nAverage inference time (last " << iterations - 5 << " runs): " << avg_time << "ms" << std::endl;
 
     return 0;
 }
