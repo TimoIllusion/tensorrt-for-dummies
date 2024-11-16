@@ -24,7 +24,7 @@ class TRTInference
 {
 public:
     TRTInference(const std::string& engineFilename);
-    bool infer(const std::string& input_filename, int32_t width, int32_t height);
+    bool infer(const std::vector<float>& input_buffer, std::vector<float>& output_buffer);
 
 private:
     std::string mEngineFilename;                    
@@ -89,19 +89,8 @@ void TRTInference::allocateResources(int32_t width, int32_t height)
     cudaMalloc(&mOutputMem, mOutputSize);
 }
 
-bool TRTInference::infer(const std::string& input_filename, int32_t width, int32_t height)
+bool TRTInference::infer(const std::vector<float>& input_buffer, std::vector<float>& output_buffer)
 {
-    std::vector<float> input_buffer;
-    try
-    {
-        input_buffer = preprocessImage(input_filename, width, height);
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-        return false;
-    }
-
     cudaMemcpyAsync(mInputMem, input_buffer.data(), mInputSize, cudaMemcpyHostToDevice, mStream);
 
     mContext->setTensorAddress("input", mInputMem);
@@ -120,11 +109,9 @@ bool TRTInference::infer(const std::string& input_filename, int32_t width, int32
     std::chrono::duration<double, std::milli> inference_time = end_time - start_time;
     std::cout << "Inference time: " << inference_time.count() << "ms" << std::endl;
 
-    std::vector<float> output_buffer(mOutputSize / sizeof(float));
+    output_buffer.resize(mOutputSize / sizeof(float));
     cudaMemcpyAsync(output_buffer.data(), mOutputMem, mOutputSize, cudaMemcpyDeviceToHost, mStream);
     cudaStreamSynchronize(mStream);
-
-    postprocessOutput(output_buffer);
 
     return true;
 }
@@ -138,12 +125,25 @@ int main(int argc, char** argv)
 
     std::cout << "Running TensorRT inference" << std::endl;
 
+    // Preprocess the image once
+    std::vector<float> input_buffer;
+    try
+    {
+        input_buffer = preprocessImage("cat.jpg", width, height);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+        return -1;
+    }
+
     int iterations = 100;
     std::vector<double> times;
+    std::vector<float> output_buffer;
     for (int i = 0; i < iterations; ++i)
     {
         auto start_time = std::chrono::high_resolution_clock::now();
-        if (!sample.infer("cat.jpg", width, height))
+        if (!sample.infer(input_buffer, output_buffer))
         {
             return -1;
         }
@@ -155,6 +155,9 @@ int main(int argc, char** argv)
 
     double avg_time = std::accumulate(times.begin() + 5, times.end(), 0.0) / (iterations - 5);
     std::cout << "\nAverage inference time (last " << iterations - 5 << " runs): " << avg_time << "ms" << std::endl;
+
+    // Postprocess the output after inference
+    postprocessOutput(output_buffer);
 
     return 0;
 }
