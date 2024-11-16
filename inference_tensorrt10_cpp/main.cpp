@@ -34,8 +34,8 @@ private:
     std::unique_ptr<nvinfer1::IRuntime> mRuntime;  
     std::unique_ptr<nvinfer1::ICudaEngine> mEngine;
     std::unique_ptr<nvinfer1::IExecutionContext> mContext; // Execution context for inference
-    void* mInputMem{nullptr}; // CUDA memory for input
-    void* mOutputMem{nullptr}; // CUDA memory for output
+    void* mInputMem{nullptr}; // Pinned host memory for input
+    void* mOutputMem{nullptr}; // Device memory for output
     size_t mInputSize; // Size of input memory
     size_t mOutputSize; // Size of output memory
     cudaStream_t mStream; // CUDA stream
@@ -69,7 +69,7 @@ TRTInference::TRTInference(const std::string& engineFilename)
 
     // Allocate resources once during initialization
     allocateResources(224, 224); // Assuming default width and height, can be adjusted as needed
-    cudaStreamCreate(&mStream);
+    cudaStreamCreateWithPriority(&mStream, cudaStreamNonBlocking, 1); // Use high-priority non-blocking stream
 }
 
 void TRTInference::allocateResources(int32_t width, int32_t height)
@@ -85,8 +85,9 @@ void TRTInference::allocateResources(int32_t width, int32_t height)
     auto output_dims = mContext->getTensorShape(output_name);
     mOutputSize = util::getMemorySize(output_dims, sizeof(float));
 
-    cudaMalloc(&mInputMem, mInputSize);
-    cudaMalloc(&mOutputMem, mOutputSize);
+    // Allocate pinned memory for input and device memory for output
+    cudaHostAlloc(&mInputMem, mInputSize, cudaHostAllocDefault);  // Allocate pinned host memory for input
+    cudaMalloc(&mOutputMem, mOutputSize);  // Device memory for output
 }
 
 bool TRTInference::infer(const std::vector<float>& input_buffer, std::vector<float>& output_buffer)
@@ -98,19 +99,18 @@ bool TRTInference::infer(const std::vector<float>& input_buffer, std::vector<flo
 
     std::cout << "Running TensorRT inference..." << std::endl;
 
-    auto start_time = std::chrono::high_resolution_clock::now();
+    // Launch inference asynchronously
     if (!mContext->enqueueV3(mStream))
     {
         std::cout << "ERROR: TensorRT inference failed" << std::endl;
         return false;
     }
-    cudaStreamSynchronize(mStream);
-    auto end_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> inference_time = end_time - start_time;
-    std::cout << "Inference time: " << inference_time.count() << "ms" << std::endl;
 
+    // Asynchronous copy output back to host while inference is running
     output_buffer.resize(mOutputSize / sizeof(float));
     cudaMemcpyAsync(output_buffer.data(), mOutputMem, mOutputSize, cudaMemcpyDeviceToHost, mStream);
+
+    // Synchronize once at the end
     cudaStreamSynchronize(mStream);
 
     return true;
