@@ -14,7 +14,7 @@ Easy examples to get started with TensorRT.
 1. Download and install CUDA (tested with CUDA 12.6)
 2. Download and extract CUDNN to CUDA directory (tested with CUDNN 8.9.7 for CUDA 12.x)
 3. Download and extract TensorRT to any directory, e.g. ``C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26`` (tested with TensorRT 10.6 GA for CUDA 12.0-12.6)
-4. Add TensorRT lib dir `C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26\lib` to PATH environment variable (e.g. via GUI)
+4. Add TensorRT lib dir `C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26\lib` to PATH environment variable (e.g. via GUI). If C++ code is used, also add TensorRT include dir to PATH.
 5. Install TensorRT wheels from TensorRT python dir, e.g. `C:\Program Files\NVIDIA GPU Computing Toolkit\TensorRT-10.6.0.26\python` for corresponding python version:
 
     ```console
@@ -31,22 +31,22 @@ For C++ part `inference_tensorrt10_cpp`:
 
 1. Install vcpkg (https://github.com/microsoft/vcpkg). 
 
-```bash
+    ```bash
 
-git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg
-.\bootstrap-vcpkg.bat
-```
+    git clone https://github.com/microsoft/vcpkg.git
+    cd vcpkg
+    .\bootstrap-vcpkg.bat
+    ```
 
-``VCPKG_ROOT`` environment variable should be set to the vcpkg directory, e.g. `C:\vcpkg`.
-Add VCPKG_ROOT to PATH environment variable (e.g. via GUI).
+    ``VCPKG_ROOT`` environment variable should be set to the vcpkg directory, e.g. `C:\vcpkg`.
+    Add VCPKG_ROOT to PATH environment variable (e.g. via GUI).
 
 2. Install required vcpkg packages:
 
-```bash
-vcpkg install opencv:x64-windows
-vcpkg integrate install
-```
+    ```bash
+    vcpkg install opencv:x64-windows
+    vcpkg integrate install
+    ```
 
 3. Install CMake extensions if not already installed via recommended extensions on vscode startup.
 
@@ -58,17 +58,32 @@ See official TensorRT installation guide: https://docs.nvidia.com/deeplearning/t
 
 ## Install Other Requirements
 
-```bash
-pip install -r requirements.txt
-```
+First, install python (version 3.10 recommended). Furthermore, it is recommended to setup a python virtual environment either with conda or using venv. Then, clone the repo to your workspace:
 
 ```bash
+git clone https://github.com/TimoIllusion/tensorrt-for-dummies.git
+cd tensorrt-for-dummies
+```
+
+Install PyTorch and other requirements (depending on OS):
+
+```bash
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 # on windows
+pip3 install torch torchvision torchaudio # on linux
+```
+
+Install other requirements and torch2trt:
+
+```bash
+pip install -r requirements.txt # requires msvc compiler on windows for pycuda
 pip install git+https://github.com/NVIDIA-AI-IOT/torch2trt
 ```
 
+>Note: MSVC compiler on windows can be installed by installing  [Visual Studio Build Tools or Visual Studio 2019/2022]( https://visualstudio.microsoft.com/de/downloads/?q=build+tools).
+
 ## Getting Started
 
-Run the scripts one by one:
+Run the commands one by one:
 
 ```bash
 python inference_pytorch.py # (~7.14 ms on RTX 4090)
@@ -79,10 +94,11 @@ python onnx2tensorrt10.py
 
 python inference_tensorrt10.py # (~1.39 ms on RTX 4090)
 
+# has to be build first
 .\build\Release\main.exe # (~1.33 ms on RTX 4090), run command with ./build/Release/main on Linux
 ```
 
-**Torch2TRT is the recommended way to use TensorRT with PyTorch in Python. Using TensoRT directly is more complex and requires more code, but is also more flexible. This process is recommended if C++ TensorRT API is used and not Python or other frameworks like TesnorFlow are used.**
+Torch2TRT is the recommended way to use TensorRT with PyTorch in Python. Using TensoRT directly is more complex and requires more code, but is also more flexible. This process is recommended if C++ TensorRT API is used and not Python or other frameworks like TesnorFlow are used.
 
 ## References
 
