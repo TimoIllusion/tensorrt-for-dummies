@@ -1,0 +1,5 @@
+torch # if on windows: should be installed before using requirements_... files
+torchvision # if on windows: should be installed before using requirements_... files
+tensorrt # if on windows: should be installed before using requirements_... files
+opencv-python
+numpy

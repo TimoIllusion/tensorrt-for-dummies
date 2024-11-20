@@ -27,7 +27,39 @@ Easy examples to get started with TensorRT.
     python -c "import tensorrt as trt; print(trt.__version__)"
     ```
 
-For C++ part `inference_tensorrt10_cpp`:
+**Linux**:
+
+See official TensorRT installation guide: https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html
+
+## Install Other Requirements
+
+First, install python (version 3.10 recommended). Furthermore, it is recommended to setup a python virtual environment either with conda or using venv. Then, clone the repo to your workspace:
+
+```bash
+git clone https://github.com/TimoIllusion/tensorrt-for-dummies.git
+cd tensorrt-for-dummies
+```
+
+Install PyTorch and other requirements (depending on OS):
+
+```bash
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 # on windows
+pip3 install torch torchvision torchaudio # on linux
+```
+
+Install the components you need (or install in seperate envs):
+
+```bash
+pip install -r requirements_tensorrt_native.txt
+# requires msvc compiler on windows for pycuda
+# might reinstall torch to newer version when installing torchtensorrt
+pip install -r requirements_torch2trt.txt
+```
+
+>Note: MSVC compiler on windows can be installed by installing  [Visual Studio Build Tools or Visual Studio 2019/2022]( https://visualstudio.microsoft.com/de/downloads/?q=build+tools).
+
+
+**Only needed for C++ program `inference_tensorrt10_cpp`, skip otherwise:**
 
 1. Install vcpkg (https://github.com/microsoft/vcpkg). 
 
@@ -52,36 +84,9 @@ For C++ part `inference_tensorrt10_cpp`:
 
 4. Select compiler, configure and build the project in vscode (release mode).
 
-**Linux**:
+## Run Examples
 
-See official TensorRT installation guide: https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html
-
-## Install Other Requirements
-
-First, install python (version 3.10 recommended). Furthermore, it is recommended to setup a python virtual environment either with conda or using venv. Then, clone the repo to your workspace:
-
-```bash
-git clone https://github.com/TimoIllusion/tensorrt-for-dummies.git
-cd tensorrt-for-dummies
-```
-
-Install PyTorch and other requirements (depending on OS):
-
-```bash
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 # on windows
-pip3 install torch torchvision torchaudio # on linux
-```
-
-Install other requirements and torch2trt:
-
-```bash
-pip install -r requirements.txt # requires msvc compiler on windows for pycuda
-pip install git+https://github.com/NVIDIA-AI-IOT/torch2trt
-```
-
->Note: MSVC compiler on windows can be installed by installing  [Visual Studio Build Tools or Visual Studio 2019/2022]( https://visualstudio.microsoft.com/de/downloads/?q=build+tools).
-
-## Getting Started
+**Native pytorch, torch2trt, native tensorrt python/c++:**
 
 Run the commands one by one:
 
@@ -94,11 +99,28 @@ python onnx2tensorrt10.py
 
 python inference_tensorrt10.py # (~1.39 ms on RTX 4090)
 
-# has to be build first
+# has to be compiled first, see sections above
 .\build\Release\main.exe # (~1.33 ms on RTX 4090), run command with ./build/Release/main on Linux
 ```
 
 Torch2TRT is the recommended way to use TensorRT with PyTorch in Python. Using TensoRT directly is more complex and requires more code, but is also more flexible. This process is recommended if C++ TensorRT API is used and not Python or other frameworks like TesnorFlow are used.
+
+**torch-tensorrt (stil experimental in this repo):**
+
+```bash
+pip install -r requirements_torchtensorrt.txt 
+python inference_torch_tensorrt.py 
+```
+
+If there are issues with your torch_tensorrt environment, try using a docker container like the official NVIDIA PyTorch container. There might be issues due to TensorRT or CUDA version mismatches. See https://pytorch.org/TensorRT/getting_started/installation.html for more information.
+
+```bash
+# on windows
+docker run -it --gpus=all --shm-size=8g -v .\:/workspace --rm nvcr.io/nvidia/pytorch:24.08-py3 python inference_torchtensorrt.py # (~ 1.73ms on RTX 4090)
+
+# on linux
+docker run -it --gpus=all --shm-size=8g -v ./:/workspace --rm nvcr.io/nvidia/pytorch:24.08-py3 python inference_torchtensorrt.py 
+```
 
 ## References
 
@@ -106,6 +128,7 @@ Torch2TRT is the recommended way to use TensorRT with PyTorch in Python. Using T
 - https://tengteng.medium.com/example-inference-code-to-run-tensorrt-10-0-32ea93fdcc2e
 - https://images.unsplash.com/photo-1529778873920-4da4926a72c2?ixid=MnwxMjA3fDB8MHxzZWFyY2h8MXx8Y3V0ZSUyMGNhdHxlbnwwfHwwfHw%3D&ixlib=rb-1.2.1&q=80&w=1000
 - https://github.com/NVIDIA/TensorRT/tree/release/10.6/quickstart/SemanticSegmentation (Apache-2.0)
+- https://github.com/pytorch/TensorRT
 
 ## License
 

@@ -1,5 +1,7 @@
-efficientnet.onnx
 *.pyc
+build
+efficientnet.onnx
 efficientnet.engine
 efficientnet_trt.pth
-build
+efficientnet_trt.ts
+

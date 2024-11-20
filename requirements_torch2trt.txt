@@ -1,0 +1,2 @@
+-r requirements_base.txt
+git+https://github.com/NVIDIA-AI-IOT/torch2trt

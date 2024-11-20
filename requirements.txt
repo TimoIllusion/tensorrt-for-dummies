@@ -1,8 +1,0 @@
-torch
-opencv-python
-numpy
-onnx==1.14.0 # needed for model export to onnx
-onnx-graphsurgeon==0.5.2
-protobuf==3.20.2 # needed for model export to onnx, fixes the default protobuf version
-pycuda
-packaging
